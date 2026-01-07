@@ -1,7 +1,7 @@
 [project]
 name = "prompt-optimizer"
-version = "0.1.0"
-description = "LangGraph 기반 HITL 프롬프트 최적화 도구"
+version = "1.0.0"
+description = "LangGraph 기반 HITL 프롬프트 최적화 도구 (CLI & GUI)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -10,6 +10,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pydantic>=2.0.0",
 ]
+
+[project.scripts]
+prompt-optimizer = "main:main"
+prompt-optimizer-gui = "gui:main"
 
 [tool.uv]
 dev-dependencies = []
