@@ -1,5 +1,6 @@
 # Environment variables (API keys)
 .env
+scripts/.env
 
 # Python
 __pycache__/
@@ -27,6 +28,7 @@ wheels/
 .venv/
 venv/
 ENV/
+scripts/.venv/
 
 # IDE
 .idea/
@@ -40,3 +42,5 @@ Thumbs.db
 
 # uv
 .uv/
+uv.lock
+scripts/uv.lock

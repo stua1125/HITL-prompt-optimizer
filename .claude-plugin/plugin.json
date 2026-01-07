@@ -1,0 +1,13 @@
+{
+  "name": "hitl-prompt-optimizer",
+  "version": "1.0.0",
+  "description": "HITL 프롬프트 최적화 도구 - LangGraph 기반 Human-in-the-Loop 방식으로 프롬프트를 분석하고 개선합니다",
+  "author": {
+    "name": "stua1125",
+    "url": "https://github.com/stua1125"
+  },
+  "homepage": "https://github.com/stua1125/HITL-prompt-optimizer",
+  "repository": "https://github.com/stua1125/HITL-prompt-optimizer",
+  "license": "MIT",
+  "keywords": ["prompt", "optimization", "hitl", "langgraph", "human-in-the-loop"]
+}

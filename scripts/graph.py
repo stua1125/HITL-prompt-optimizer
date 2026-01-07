@@ -28,11 +28,20 @@ def create_workflow():
     def route_after_judge(state: AgentState) -> str:
         """judge 노드 이후 라우팅을 결정합니다.
 
-        - 점수가 80점 이상이거나 반복 3회 도달 시 종료
-        - 그 외에는 human_input으로 이동
+        종료 조건 (OR):
+        - 점수가 90점 이상
+        - 객관식 모드에서 질문 횟수 5회 도달
+
+        그 외에는 human_input으로 이동
         """
-        if state["is_good"] or state["iteration_count"] >= 3:
+        # 90점 이상이면 종료
+        if state["is_good"] or state["score"] >= 90:
             return END
+
+        # 객관식 모드에서 5회 질문 완료 시 종료
+        if state["mode"] == "multiple_choice" and state.get("question_count", 0) >= 5:
+            return END
+
         return "human_input"
 
     # 엣지 연결

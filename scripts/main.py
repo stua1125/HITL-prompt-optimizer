@@ -24,15 +24,13 @@ def display_header():
     print("HITL 프롬프트 옵티마이저 (Prompt Optimizer)")
     print("=" * 50)
     print("프롬프트를 분석하고 최적화하는 도구입니다.")
-    print("최대 3회 반복하며, 80점 이상이면 완료됩니다.\n")
+    print("• 60점 미만: 직접 입력 모드")
+    print("• 60점 이상: 객관식 질문 모드 (최대 5회)")
+    print("• 90점 이상 달성 시 완료\n")
 
 
 def get_confirmation() -> bool:
-    """사용자로부터 Y/N 확인을 받습니다.
-
-    Returns:
-        True if user confirms (Y/y), False otherwise (N/n)
-    """
+    """사용자로부터 Y/N 확인을 받습니다."""
     while True:
         choice = input("\n🤖 이 프롬프트로 LLM과 채팅하시겠습니까? (Y/N): ").strip().lower()
         if choice in ('y', 'yes'):
@@ -43,16 +41,17 @@ def get_confirmation() -> bool:
             print("⚠️ Y 또는 N을 입력해주세요.")
 
 
-def get_user_choice(options: list) -> tuple[str, str]:
-    """사용자로부터 선택과 피드백을 받습니다.
+def get_direct_input(guidance: str) -> str:
+    """직접 입력 모드: 사용자로부터 보충 내용을 입력받습니다."""
+    print(f"\n📝 보충이 필요합니다:")
+    print(f"   {guidance}")
+    feedback = input("\n✏️  내용을 입력하세요: ").strip()
+    return feedback
 
-    Args:
-        options: 보완 선택지 리스트
 
-    Returns:
-        (선택한 옵션, 추가 피드백) 튜플
-    """
-    print("\n📋 보완이 필요합니다. 다음 중 하나를 선택하세요:\n")
+def get_multiple_choice(question: str, options: list) -> str:
+    """객관식 모드: 사용자로부터 선택을 받습니다."""
+    print(f"\n❓ {question}\n")
     for i, opt in enumerate(options, 1):
         print(f"  {i}. {opt}")
 
@@ -67,14 +66,10 @@ def get_user_choice(options: list) -> tuple[str, str]:
             choice_idx = int(choice_input) - 1
 
             if 0 <= choice_idx < len(options):
-                break
+                return options[choice_idx]
             print(f"⚠️ 1-{len(options)} 사이의 숫자를 입력해주세요.")
         except ValueError:
             print("⚠️ 올바른 숫자를 입력해주세요.")
-
-    feedback = input("✏️  추가할 구체적인 내용을 입력하세요 (없으면 Enter): ").strip()
-
-    return options[choice_idx], feedback
 
 
 def run_optimizer():
@@ -99,10 +94,14 @@ def run_optimizer():
         "current_prompt": initial_input,
         "score": 0,
         "is_good": False,
-        "critique_options": [],
+        "mode": "direct_input",
+        "guidance": None,
+        "question": None,
+        "options": [],
         "user_choice": None,
         "user_feedback": None,
-        "iteration_count": 0
+        "question_count": 0,
+        "chat_response": None
     }
 
     print("\n⏳ 프롬프트 분석 중...")
@@ -119,45 +118,62 @@ def run_optimizer():
         if state.next:
             values = state.values
             score = values.get("score", 0)
-            iteration = values.get("iteration_count", 0)
+            mode = values.get("mode", "direct_input")
+            question_count = values.get("question_count", 0)
 
-            print(f"\n{'─' * 40}")
-            print(f"📊 현재 점수: {score}/100 (반복: {iteration}/3)")
+            print(f"\n{'─' * 50}")
+            print(f"📊 현재 점수: {score}/100", end="")
+            if mode == "multiple_choice":
+                print(f" | 객관식 질문: {question_count}/5회")
+            else:
+                print(f" | 모드: 직접 입력")
+
             print(f"📄 현재 프롬프트:\n   {values.get('current_prompt', '')[:100]}...")
 
-            # 사용자 입력 받기
-            options = values.get("critique_options", [])
-            if options:
-                user_choice, user_feedback = get_user_choice(options)
+            # 모드에 따른 사용자 입력 처리
+            if mode == "direct_input":
+                guidance = values.get("guidance", "프롬프트에 더 많은 정보를 추가해주세요.")
+                user_feedback = get_direct_input(guidance)
 
-                # 상태 업데이트 및 재개
+                app.update_state(
+                    config,
+                    {
+                        "user_choice": None,
+                        "user_feedback": user_feedback
+                    },
+                    as_node="human_input"
+                )
+            else:
+                question = values.get("question", "어떤 옵션을 선택하시겠습니까?")
+                options = values.get("options", ["옵션 1", "옵션 2", "옵션 3", "옵션 4"])
+                user_choice = get_multiple_choice(question, options)
+
                 app.update_state(
                     config,
                     {
                         "user_choice": user_choice,
-                        "user_feedback": user_feedback or "없음"
+                        "user_feedback": None
                     },
                     as_node="human_input"
                 )
 
-                print("\n⏳ 프롬프트 개선 중...")
+            print("\n⏳ 프롬프트 개선 중...")
 
-                # 다음 단계 실행
-                for event in app.stream(None, config):
-                    pass
-            else:
-                print("⚠️ 선택지가 없습니다. 종료합니다.")
-                break
+            # 다음 단계 실행
+            for event in app.stream(None, config):
+                pass
         else:
             # 최적화 완료
             final_state = state.values
             final_prompt = final_state.get('current_prompt', '')
+            final_score = final_state.get('score', 0)
+            question_count = final_state.get('question_count', 0)
 
             print(f"\n{'═' * 50}")
             print("✨ 최적화 완료!")
             print(f"{'═' * 50}")
-            print(f"📊 최종 점수: {final_state.get('score', 0)}/100")
-            print(f"🔄 반복 횟수: {final_state.get('iteration_count', 0)}회")
+            print(f"📊 최종 점수: {final_score}/100")
+            print(f"🔄 객관식 질문 횟수: {question_count}회")
             print(f"\n📝 원본 프롬프트:\n   {final_state.get('initial_prompt', '')}")
             print(f"\n🎯 최종 프롬프트:")
             print(f"{'─' * 50}")
